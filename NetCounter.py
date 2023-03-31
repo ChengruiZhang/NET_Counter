@@ -82,8 +82,6 @@ def decouple(input):
 
 # compute memory, weight usage and FLOPs of each layer
 def Input_Memory_FLOPs_Hook(network, input, output):
-    # if network._get_name() == "GPT":
-    #     print(1)
     
     if network._get_name() == 'MultiheadAttention':
         new_row = {
@@ -150,11 +148,6 @@ def Input_Memory_FLOPs_Hook(network, input, output):
 # add hooks for each layer
 def Add_Input_Hook(network: nn.Module): #, Support_module: dict):
     for i in network._modules:
-        # print(i)
-        # if isinstance(network._modules[i], nn.MultiheadAttention):
-            # profile MultiHeadAttention input feature and weight
-            # directly add to Memory_Count
-            # pass
         if isinstance(network._modules[i], nn.Module):
             network._modules[i] = Add_Input_Hook(network._modules[i])# , Support_module)
         else:
