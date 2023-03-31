@@ -10,6 +10,7 @@ Copyright (C) 2021 Sovrasov V. - All Rights Reserved
 """
 In this file, we add some new Modules and 
 directly output the FLOPs of each NN.Module based layer
+By Ray
 """
 
 import numpy as np
@@ -17,7 +18,6 @@ import torch.nn as nn
 import torch
 
 import os
-# os.path
 
 
 def empty_flops_counter_hook(module, input, output):
