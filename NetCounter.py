@@ -18,12 +18,12 @@ import pandas as pd
 
 def _init(): 
     global Memory_Count
-    global Output_size
+    global Missing_Module
     # global FLOPs_count
 
     Memory_Count = pd.DataFrame(columns=["NetName", "InputMemoryUsage-M", "InputShape", "WeightShape", \
         "OutputShape", "WeightMemoryUsage-M", "FLOPsCount-G"])
-    Output_size = pd.DataFrame(columns=["NetName", "InputMemoryUsage-M", "WeightMemoryUsage-M", "FLOPsCount-G"])
+    Missing_Module = []
     # FLOPs_count = pd.DataFrame(columns=["NetName", "FLOPs_count"])
 
 
@@ -31,8 +31,8 @@ def Add_Input_Value(value):
     Memory_Count.loc[len(Memory_Count)] = value
     
 
-def Add_Output_Value(value):
-    Output_size.loc[len(Output_size)] = value
+def Add_Missing_Module(value):
+    Missing_Module.append(value)
 
 
 def get_value(string):
@@ -132,7 +132,11 @@ def Input_Memory_FLOPs_Hook(network, input, output):
         if type(network) in MODULES_MAPPING or type(network) in CUSTOM_MODULES_MAPPING:
             new_row["FLOPsCount-G"] = MODULES_MAPPING[type(network)](network, input, output) / 1024 / 1024 / 1024
         else:
-            print(f"Missing modules {type(network)}")
+            # print(f"Missing modules {type(network)}")
+            if type(network) in Missing_Module:
+                pass
+            else:
+                Add_Missing_Module(type(network))
             new_row["FLOPsCount-G"] = 0
             new_row["WeightMemoryUsage-M"] = 0
             new_row["WeightShape"] = []
