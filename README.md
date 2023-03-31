@@ -1,6 +1,7 @@
 # NET_Counter
 FLOPs and memory usage (Input and weight) of each network layer.  
-Some functions come from ptflops package, in this file we ensure that every submodule can be visited.
+Some functions come from ptflops package, in this file we ensure that every submodule can be visited.  
+Please notice that we only compute the memory usage and FLOPs for torch.nn.Module based basic functions (like Conv2d, Dropout, etc.)
 
 ## Demo
 
