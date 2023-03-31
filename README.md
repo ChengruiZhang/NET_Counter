@@ -7,6 +7,8 @@ Please notice that we only compute the memory usage and FLOPs for torch.nn.Modul
 
 from FLOPs_Counter_Func import *  
 import pandas as pd  
+import NetCounter
+NetCounter._init() # initialize global var
   
 net = NetworkCreate() # create a new network  
 net2 = NetCounter.Add_Input_Hook(net) # add hooks in each layer  
