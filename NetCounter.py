@@ -22,7 +22,7 @@ def _init():
     # global FLOPs_count
 
     Memory_Count = pd.DataFrame(columns=["NetName", "InputMemoryUsage-M", "InputShape", "WeightShape", \
-        "OutputShape", "WeightMemoryUsage-M", "FLOPsCount-G"])
+        "OutputShape", "WeightMemoryUsage-M", "FLOPsCount-G", "Input+WeightMU-M"])
     Missing_Module = []
     # FLOPs_count = pd.DataFrame(columns=["NetName", "FLOPs_count"])
 
@@ -80,30 +80,30 @@ def decouple(input):
     return input_shape
 
 
+def decouple_tensor(input):
+    output = []
+    for i in input:
+        if torch.is_tensor(i):
+            output.append(i)
+            continue
+        else:
+            tmp = decouple_tensor(i)
+            [output.append(j) for j in tmp]
+    return output
+
+
 # compute memory, weight usage and FLOPs of each layer
 def Input_Memory_FLOPs_Hook(network, input, output):
     
-    if network._get_name() == 'MultiheadAttention':
-        new_row = {
-                    "NetName": network._get_name(),
-                    # "InputMemoryUsage-M": int(torch.prod(torch.tensor(input.shape))),
-                    "InputMemoryUsage-M": sum(p.numel() for p in input) / 1024 / 1024,
-                    "InputShape": [list(p.shape) for p in input],
-                    "OutputShape": list(decouple(output)),
-                    "WeightShape": [list(p.shape) for p in network.parameters()],
-                    "WeightMemoryUsage-M": sum(p.numel() for p in network.parameters() if p.requires_grad) / 1024 / 1024
-                }
-        new_row["FLOPsCount-G"] = MODULES_MAPPING[type(network)](network, (input[0], input[0], input[0]), output) / 1024 / 1024 / 1024
-        Add_Input_Value(new_row)
-        return None
-        
+    input_count = decouple_tensor(input)
+    
     # for memory and weight usage
     try:
         
         new_row = {
                     "NetName": network._get_name(),
-                    "InputMemoryUsage-M": sum(p.numel() for p in input) / 1024 / 1024,
-                    "InputShape": [list(p.shape) for p in input],
+                    "InputMemoryUsage-M": sum(p.numel() for p in input_count) / 1024 / 1024,
+                    "InputShape": [list(p.shape) for p in input_count],
                     "OutputShape": list(decouple(output)),
                     "WeightShape": [list(p.shape) for p in network.parameters()],
                     "WeightMemoryUsage-M": sum(p.numel() for p in network.parameters() if p.requires_grad) / 1024 / 1024
@@ -111,13 +111,21 @@ def Input_Memory_FLOPs_Hook(network, input, output):
     except:
         new_row = {
                     "NetName": network._get_name(),
-                    "InputMemoryUsage-M": sum(p.numel() for p in input) / 1024 / 1024,
-                    "InputShape": [list(p.shape) for p in input],
+                    "InputMemoryUsage-M": sum(p.numel() for p in input_count) / 1024 / 1024,
+                    "InputShape": [list(p.shape) for p in input_count],
                     "OutputShape": list(decouple(output)),
                     "WeightShape": [list(p.shape) for p in network.parameters()],
                     "WeightMemoryUsage-M": 0,
                 }
     
+    # if network._get_name() == 'MultiheadAttention':
+    if isinstance(network, nn.MultiheadAttention):
+        new_row["FLOPsCount-G"] = MODULES_MAPPING[type(network)](network, input, output) / 1024 / 1024 / 1024
+                                                                #  (input[0], input[0], input[0]), output) / 1024 / 1024 / 1024
+        new_row["Input+WeightMU-M"] = new_row["InputMemoryUsage-M"] + new_row["WeightMemoryUsage-M"]
+        Add_Input_Value(new_row)
+        return None
+        
     # bias
     try:
         if network.bias is not None:
@@ -140,7 +148,9 @@ def Input_Memory_FLOPs_Hook(network, input, output):
             new_row["WeightShape"] = []
     except:
         new_row["FLOPsCount-G"] = 0
-        
+    
+    new_row["Input+WeightMU-M"] = new_row["InputMemoryUsage-M"] + new_row["WeightMemoryUsage-M"]
+    
     # add value
     Add_Input_Value(new_row)
 
@@ -148,8 +158,13 @@ def Input_Memory_FLOPs_Hook(network, input, output):
 # add hooks for each layer
 def Add_Input_Hook(network: nn.Module): #, Support_module: dict):
     for i in network._modules:
-        if isinstance(network._modules[i], nn.Module):
-            network._modules[i] = Add_Input_Hook(network._modules[i])# , Support_module)
+        # print(i)
+        # if isinstance(network._modules[i], nn.MultiheadAttention):
+            # profile MultiHeadAttention input feature and weight
+            # directly add to Memory_Count
+            # pass
+        if isinstance(network._modules[i], nn.Module): # nn.MultiheadAttention is not nn.Module
+            network._modules[i] = Add_Input_Hook(network._modules[i])
         else:
             try:
                 # network._modules[i].register_forward_hook(Input_Memory_Hook)
